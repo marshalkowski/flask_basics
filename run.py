@@ -1,58 +1,136 @@
-from flask import Flask, request, render_template
+from flask import Flask, render_template, request, session, g
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 
 app = Flask(__name__)
 
 app.config.update(
-    SECRET_KEY='supersecure',
-    SQLALCHEMY_DATABASE_URI='postgresql://postgres:PostReal1ty@localhost/catalog_db',
-    SQLALCHEMY_TRACK_MODIFICATIONS=False)
+    SECRET_KEY='topsecret',
+    SQLALCHEMY_DATABASE_URI='postgresql://postgres:topsecret@localhost/catalog_db',
+    SQLALCHEMY_TRACK_MODIFICATIONS=False
+)
 
 db = SQLAlchemy(app)
 
 
+@app.before_request
+def some_function():
+    g.string = '<br> This code ran before any request'
+
+
+# BASIC ROUTE
 @app.route('/index')
 @app.route('/')
-def hello_world():
-    return 'Hello World!'
+def hello_flask():
+    return 'Hello Flask! <br>' + g.string
 
 
+# QUERY STRINGS
 @app.route('/new/')
-def query_strings(greeting = 'Hey, there'):
+def query_strings(greeting='hello'):
     query_val = request.args.get('greeting', greeting)
-    return '<h1>Greeting is: {0} </hq>'.format(query_val)
+    return '<h1> the greeting is : {0} </h1>'.format(query_val) + g.string
 
 
+# REMOVE QUERY STRINGS
 @app.route('/user')
 @app.route('/user/<name>')
-def no_query_strings(name='Cecilia'):
-    return '<h1>Hello, {}!</h1>'.format(name)
+def no_query_strings(name='mina'):
+    return '<h1> hello there ! {} </h1>'.format(name)
 
 
-# TEMPLATES
+# STRINGS
+@app.route('/text/<string:name>')
+def working_with_strings(name):
+    return '<h1> here is a string: ' + name + '</h1>'
+
+
+# NUMBERS
+@app.route('/numbers/<int:num>')
+def working_with_numbers(num):
+    return '<h1> the number you picked is: ' + str(num) + '</h1>'
+
+
+# MORE NUMBERS
+@app.route('/add/<int:num1>/<int:num2>')
+def adding_integers(num1, num2):
+    return '<h1>the sum is : {}'.format(num1 + num2) + '</h1>'
+
+
+# FLOATS
+@app.route('/product/<float:num1>/<float:num2>')
+def product_two_numbers(num1, num2):
+    return '<h1> the product is: {}'.format(num1 * num2) + '</h1>'
+
+
+# USING TEMPLATES
 @app.route('/temp')
 def using_templates():
     return render_template('hello.html')
 
 
 # JINJA TEMPLATES
-@app.route('/todo')
-def tasks_to_do():
-    task_list = ['fix fence',
-                 'build workbench',
-                 'move powerstrip',
-                 'adjust desk',
-                 'organize office']
+@app.route('/watch')
+def movies_2017():
+    movie_list = ['autopsy of jane doe',
+                  'neon demon',
+                  'ghost in a shell',
+                  'kong: skull island',
+                  'john wick 2',
+                  'spiderman - homecoming']
 
-    return render_template('todolist.html',
-                           tasks=task_list,
-                           name='Ben')
+    return render_template('movies.html',
+                           movies=movie_list,
+                           name='Harry')
 
 
-@app.route('/bye')
-def bye_moon():
-    return 'Goodbye Moon!'
+@app.route('/tables')
+def movies_plus():
+    movies_dict = {'autopsy of jane doe': 02.14,
+                   'neon demon': 3.20,
+                   'ghost in a shell': 1.50,
+                   'kong: skull island': 3.50,
+                   'john wick 2': 02.52,
+                   'spiderman - homecoming': 1.48}
+
+    return render_template('table_data.html',
+                           movies=movies_dict,
+                           name='Sally')
+
+
+@app.route('/filters')
+def filter_data():
+    movies_dict = {'autopsy of jane doe': 02.14,
+                   'neon demon': 3.20,
+                   'ghost in a shell': 1.50,
+                   'kong: skull island': 3.50,
+                   'john wick 2': 02.52,
+                   'spiderman - homecoming': 1.48}
+
+    return render_template('filter_data.html',
+                           movies=movies_dict,
+                           name=None,
+                           film='a christmas carol')
+
+
+@app.route('/macros')
+def jinja_macros():
+    movies_dict = {'autopsy of jane doe': 02.14,
+                   'neon demon': 3.20,
+                   'ghost in a shell': 1.50,
+                   'kong: skull island': 3.50,
+                   'john wick 2': 02.52,
+                   'spiderman - homecoming': 1.48}
+
+    return render_template('using_macros.html',
+                           movies=movies_dict)
+
+
+@app.route('/session')
+def session_data():
+    if 'name' not in session:
+        session['name'] = 'harry'
+    return render_template('session.html', name=session['name'], session=session)
 
 
 class Publication(db.Model):
@@ -65,11 +143,11 @@ class Publication(db.Model):
         self.name = name
 
     def __repr__(self):
-        return 'Publisher is {}'.format(self.id, self.name)
+        return 'Publisher is {}'.format(self.name)
 
 
 class Book(db.Model):
-    __tablename__ = 'books'
+    __tablename__ = 'book'
 
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(500), nullable=False, index=True)
@@ -80,7 +158,7 @@ class Book(db.Model):
     num_pages = db.Column(db.Integer)
     pub_date = db.Column(db.DateTime, default=datetime.utcnow())
 
-    #Relationship
+    # Relationship
     pub_id = db.Column(db.Integer, db.ForeignKey('publication.id'))
 
     def __init__(self, title, author, avg_rating, book_format, image, num_pages, pub_id):
@@ -99,4 +177,3 @@ class Book(db.Model):
 if __name__ == '__main__':
     db.create_all()
     app.run(debug=True)
-
